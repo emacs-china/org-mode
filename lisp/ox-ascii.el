@@ -47,6 +47,7 @@
 (org-export-define-backend 'ascii
   '((bold . org-ascii-bold)
     (center-block . org-ascii-center-block)
+    (citation . org-ascii-citation)
     (clock . org-ascii-clock)
     (code . org-ascii-code)
     (drawer . org-ascii-drawer)
@@ -1172,6 +1173,11 @@ holding contextual information."
   ;; there's nothing left to do.
   contents)
 
+;;;; Citation
+
+(defun org-ascii-citation (citation contents info)
+  (org-cite-format-citation citation contents info))
+
 
 ;;;; Clock
 
@@ -1510,6 +1516,7 @@ information."
 	(value (org-element-property :value keyword)))
     (cond
      ((string= key "ASCII") (org-ascii--justify-element value keyword info))
+     ((string= key "BIBLIOGRAPHY") (org-cite-format-bibliography info))
      ((string= key "TOC")
       (org-ascii--justify-element
        (let ((case-fold-search t))

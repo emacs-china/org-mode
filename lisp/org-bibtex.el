@@ -334,60 +334,68 @@ and `org-exclude-tags-from-inheritance'."
 	     prop)
      value)))
 
-(defun org-bibtex-headline ()
-  "Return a bibtex entry of the given headline as a string."
-  (letrec ((val (lambda (key lst) (cdr (assoc key lst))))
-	   (to (lambda (string) (intern (concat ":" string))))
-	   (from (lambda (key) (substring (symbol-name key) 1)))
-	   (flatten (lambda (&rest lsts)
+(defun org-bibtex--all-properties ()
+  "Get all properties relevant to Org BibTeX of the headline at point."
+  (letrec ((flatten (lambda (&rest lsts)
 		      (apply #'append (mapcar
 				       (lambda (e)
 					 (if (listp e) (apply flatten e) (list e)))
 				       lsts))))
-	   (id (org-bibtex-get org-bibtex-key-property))
-	   (type (org-bibtex-get org-bibtex-type-property-name))
-	   (tags (when org-bibtex-tags-are-keywords
-		   (delq nil
-			 (mapcar
-			  (lambda (tag)
-			    (unless (member tag
-					    (append org-bibtex-tags
-						    org-bibtex-no-export-tags))
-			      tag))
-			  (if org-bibtex-inherit-tags
-			      (org-get-tags-at)
-			    (org-get-local-tags-at)))))))
+	   (to (lambda (string) (intern (concat ":" string))))
+	   (from (lambda (key) (substring (symbol-name key) 1)))
+	   (val (lambda (key lst) (cdr (assoc key lst))))
+	   (type (org-bibtex-get org-bibtex-type-property-name)))
+    (remq nil
+	  (if (and org-bibtex-export-arbitrary-fields
+		   org-bibtex-prefix)
+	      (mapcar
+	       (lambda (kv)
+		 (let ((key (car kv)) (val0 (cdr kv)))
+		   (when (and
+			  (string-match org-bibtex-prefix key)
+			  (not (string=
+				(downcase (concat org-bibtex-prefix
+						  org-bibtex-type-property-name))
+				(downcase key))))
+		     (cons (downcase (replace-regexp-in-string
+				      org-bibtex-prefix "" key))
+			   val0))))
+	       (org-entry-properties nil 'standard))
+	    (mapcar
+	     (lambda (field)
+	       (let ((value (or (org-bibtex-get (funcall from field))
+				(and (eq :title field)
+				     (nth 4 (org-heading-components))))))
+		 (when value (cons (funcall from field) value))))
+	     (funcall flatten
+		      (funcall val :required
+			       (funcall val
+					(funcall to type)
+					org-bibtex-types))
+		      (funcall val :optional
+			       (funcall val
+					(funcall to type)
+					org-bibtex-types))))))))
+(defun org-bibtex-headline ()
+  (let ((id (org-bibtex-get org-bibtex-key-property))
+	(type (org-bibtex-get org-bibtex-type-property-name))
+	(tags (when org-bibtex-tags-are-keywords
+		(delq nil
+		      (mapcar
+		       (lambda (tag)
+			 (unless (member tag
+					 (append org-bibtex-tags
+						 org-bibtex-no-export-tags))
+			   tag))
+		       (if org-bibtex-inherit-tags
+			   (org-get-tags-at)
+			 (org-get-local-tags-at)))))))
     (when type
       (let ((entry (format
 		    "@%s{%s,\n%s\n}\n" type id
 		    (mapconcat
-		     (lambda (pair)
-		       (format "  %s={%s}" (car pair) (cdr pair)))
-		     (remove nil
-			     (if (and org-bibtex-export-arbitrary-fields
-				      org-bibtex-prefix)
-				 (mapcar
-				  (lambda (kv)
-				    (let ((key (car kv)) (val0 (cdr kv)))
-				      (when (and
-					     (string-match org-bibtex-prefix key)
-					     (not (string=
-						   (downcase (concat org-bibtex-prefix
-								     org-bibtex-type-property-name))
-						   (downcase key))))
-					(cons (downcase (replace-regexp-in-string
-							 org-bibtex-prefix "" key))
-					      val0))))
-				  (org-entry-properties nil 'standard))
-			       (mapcar
-				(lambda (field)
-				  (let ((value (or (org-bibtex-get (funcall from field))
-						   (and (eq :title field)
-							(nth 4 (org-heading-components))))))
-				    (when value (cons (funcall from field) value))))
-				(funcall flatten
-					 (funcall val :required (funcall val (funcall to type) org-bibtex-types))
-					 (funcall val :optional (funcall val (funcall to type) org-bibtex-types))))))
+		     (lambda (pair) (format "  %s={%s}" (car pair) (cdr pair)))
+		     (org-bibtex--all-properties)
 		     ",\n"))))
 	(with-temp-buffer
 	  (insert entry)

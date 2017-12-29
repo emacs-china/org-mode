@@ -53,6 +53,7 @@
 (org-export-define-backend 'html
   '((bold . org-html-bold)
     (center-block . org-html-center-block)
+    (citation . org-html-citation)
     (clock . org-html-clock)
     (code . org-html-code)
     (drawer . org-html-drawer)
@@ -2438,6 +2439,15 @@ CONTENTS holds the contents of the block.  INFO is a plist
 holding contextual information."
   (format "<div class=\"org-center\">\n%s</div>" contents))
 
+;;;; Citation
+
+(defun org-html-citation (citation contents info)
+  ;; TODO: there's probably some voodoo related to whether a span is
+  ;; allowed to contain a block element, in case this is a full
+  ;; citation.
+  (format "<span class=\"in-text-citation\">%s</span>"
+	  (org-cite-format-citation citation contents info)))
+
 ;;;; Clock
 
 (defun org-html-clock (clock _contents _info)
@@ -2774,6 +2784,9 @@ CONTENTS is nil.  INFO is a plist holding contextual information."
   (let ((key (org-element-property :key keyword))
 	(value (org-element-property :value keyword)))
     (cond
+     ((string= key "BIBLIOGRAPHY")
+      (format "<div class=\"bibliography\">%s</div>"
+	      (org-cite-format-bibliography info)))
      ((string= key "HTML") value)
      ((string= key "TOC")
       (let ((case-fold-search t))

@@ -41,6 +41,7 @@
 (org-export-define-backend 'latex
   '((bold . org-latex-bold)
     (center-block . org-latex-center-block)
+    (citation . org-latex-citation)
     (clock . org-latex-clock)
     (code . org-latex-code)
     (drawer . org-latex-drawer)
@@ -1752,6 +1753,11 @@ holding contextual information."
   (org-latex--wrap-label
    center-block (format "\\begin{center}\n%s\\end{center}" contents) info))
 
+;;;; Citation
+
+(defun org-latex-citation (citation contents info)
+  (org-cite-format-citation citation contents info))
+
 
 ;;;; Clock
 
@@ -2222,6 +2228,7 @@ CONTENTS is nil.  INFO is a plist holding contextual information."
   (let ((key (org-element-property :key keyword))
 	(value (org-element-property :value keyword)))
     (cond
+     ((string= key "BIBLIOGRAPHY") (org-cite-format-bibliography info))
      ((string= key "LATEX") value)
      ((string= key "INDEX") (format "\\index{%s}" value))
      ((string= key "TOC")
